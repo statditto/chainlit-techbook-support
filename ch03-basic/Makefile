@@ -1,6 +1,6 @@
 SOURCE = main.py
 
-.PHONY: format lint run setup-db teardown-db
+.PHONY: format lint run create-secret start-db stop-db
 
 all: format lint
 
