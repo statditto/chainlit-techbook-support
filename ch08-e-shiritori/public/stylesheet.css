@@ -1,0 +1,9 @@
+/* しりとりはキャンバスからのみ入力。テキスト入力欄を非表示にする */
+#message-composer {
+	display: none;
+}
+
+/* ウォーターマーク（免責文）を非表示 */
+.watermark {
+	display: none;
+}
