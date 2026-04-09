@@ -1,0 +1,29 @@
+[project]
+name = "chainlit-techbook-support-ch03-basic"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "chainlit[custom-data]==2.9.6",
+    "greenlet>=3.3.2",
+    "uvicorn>=0.44.0",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.15.9", "ty>=0.0.29"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["ALL"]
+
+ignore = [
+    "D100", # Missing docstring in public module
+    "D103", # Missing docstring in public function
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

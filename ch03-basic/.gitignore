@@ -1,0 +1,15 @@
+# VS Code settings
+.vscode/
+
+# Chainlit files
+.chainlit/
+.files/
+chainlit.md
+
+# Local environment variables
+.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
