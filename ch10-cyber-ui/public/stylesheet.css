@@ -1,0 +1,973 @@
+/* =========================
+   [静的] ログイン画面 — 共通基盤
+   フォント読み込み、CSS変数、ページ全体の背景
+   ========================= */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=M+PLUS+1p:wght@400;500;700&display=swap");
+
+:root {
+  --font-body: "M PLUS 1p", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Orbitron", "M PLUS 1p", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --login-logo-url: url("/public/logo.svg");
+  --hud-h: 52px; /* base height used for 45° trapezoid cut */
+}
+
+/* Scope: login page only */
+html:has(body input[type="password"]):has(body button[type="submit"]),
+body:has(input[type="password"]):has(button[type="submit"]) {
+  min-height: 100svh;
+  margin: 0;
+  background: hsl(var(--background)) !important;
+  background-image: none !important;
+  font-family: var(--font-body);
+}
+
+/* Paint a single solid login-page backdrop above any built-in split panels/background layers */
+body:has(input[type="password"]):has(button[type="submit"]) {
+  position: relative;
+  isolation: isolate;
+}
+
+body:has(input[type="password"]):has(button[type="submit"])::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: hsl(var(--background));
+  pointer-events: none;
+}
+
+/* =========================
+   [静的] ログイン画面 — 背景・レイアウト修正
+   Chainlit既定の背景画像とサイドパネルを非表示にし、フォームを中央配置
+   ========================= */
+
+/* Login page background image layer: hide (img + its wrapper panel) */
+body:has(input[type="password"]):has(button[type="submit"])
+  img.absolute.inset-0.h-full.w-full.object-cover {
+  display: none !important;
+}
+
+/* Remove Chainlit's large-screen side panel from layout so it cannot cover half the screen */
+body:has(input[type="password"]):has(button[type="submit"])
+  div.relative.hidden.bg-muted.lg\:block.overflow-hidden,
+body:has(input[type="password"]):has(button[type="submit"])
+  div.relative.hidden.bg-muted.lg\:block.overflow-hidden:has(> img.absolute.inset-0.h-full.w-full.object-cover) {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  flex: 0 0 0 !important;
+  overflow: hidden !important;
+}
+
+/* Keep the login wrapper centered after removing the side panel */
+body:has(input[type="password"]):has(button[type="submit"]) #root,
+body:has(input[type="password"]):has(button[type="submit"]) main {
+  width: 100%;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+body:has(input[type="password"]):has(button[type="submit"])
+  main:has(form) {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-items: center !important;
+  align-items: center !important;
+  background: hsl(var(--background)) !important;
+}
+
+body:has(input[type="password"]):has(button[type="submit"])
+  main:has(form) > :has(form) {
+  width: 100% !important;
+  max-width: none !important;
+  overflow: visible !important;
+  display: grid !important;
+  place-items: center !important;
+  grid-column: 1 / -1 !important;
+}
+
+body:has(input[type="password"]):has(button[type="submit"])
+  main:has(form),
+body:has(input[type="password"]):has(button[type="submit"])
+  main:has(form) :where(div, section, article, aside) {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* =========================
+   [静的] ログイン画面 — UI要素
+   ロゴ非表示、フォーム、ラベル、入力欄、送信ボタンのスタイル
+   ========================= */
+
+/* Hide the built-in Chainlit logo image on the login page (class or src match) */
+body:has(input[type="password"]):has(button[type="submit"]) :is(img.logo, img[src="/public/logo.svg"], img[src="/logo"]) {
+  display: none !important;
+}
+
+/* Center the form and inject the logo above it */
+body:has(input[type="password"]):has(button[type="submit"]) form {
+  width: min(720px, 92vw) !important;
+  max-width: 720px !important;
+
+  display: grid;
+  gap: 18px;
+  padding: 28px 28px;
+
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  position: relative;
+}
+
+body:has(input[type="password"]):has(button[type="submit"]) :where(form, form > div, form section, form article) {
+  background: transparent !important;
+}
+
+body:has(input[type="password"]):has(button[type="submit"]) form::before {
+  content: none;
+}
+
+/* =========================
+   [動的] ロゴ回転 — レイヤードロゴのスピンアニメーション
+   ログイン画面(260px)とチャット画面(200px)で共通のキーフレームとレイヤー速度
+   ========================= */
+
+@keyframes cl-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ログイン画面のロゴコンテナ (260px) */
+body:has(input[type="password"]):has(button[type="submit"]) .cl-layered-logo {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  margin: 0 auto 8px auto;
+  filter: drop-shadow(0 8px 28px rgba(0, 0, 0, 0.45));
+}
+
+/* チャット画面のインラインロゴコンテナ (200px) */
+body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-layered-logo-inline {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0 0 8px 0;
+  filter: drop-shadow(0 8px 28px rgba(0, 0, 0, 0.45));
+}
+
+/* Shared layer base style for both login and inline logos */
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: center center;
+  animation-name: cl-logo-spin;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Per-layer rotation speeds (shared between login and inline logos) */
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-1 { animation-duration: 16s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-2 { animation-duration: 25s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-3 { animation-duration: 18s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-4 { animation-duration: 26s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-5 { animation-duration: 21s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-6 { animation-duration: 17s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-7 { animation-duration: 24s; }
+:is(.cl-layered-logo, .cl-layered-logo-inline) .cl-logo-layer-8 { animation-duration: 19s; }
+
+/* Title typography */
+body:has(input[type="password"]):has(button[type="submit"]) :where(h1, h2, h3) {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin: 0;
+  color: hsl(var(--foreground));
+}
+
+/* Align label */
+body:has(input[type="password"]):has(button[type="submit"]) label {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Box the label text (USER ID / PASSWORD) */
+body:has(input[type="password"]):has(button[type="submit"]) label > span {
+  --login-cut: 18px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  width: 200px;
+  padding: 0 16px;
+
+  position: relative;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary));
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.45);
+
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--login-cut)),
+    calc(100% - var(--login-cut)) 100%,
+    0 100%
+  );
+
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+
+/* 入力欄の視覚的階層を強化 */
+
+body:has(input[type="password"]):has(button[type="submit"]) input {
+  width: 100%;
+  height: 42px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  border-radius: 0 !important;
+  padding: 0 14px;
+  outline: none;
+  box-shadow:
+    0 0 10px hsl(var(--primary) / 0.12);
+}
+
+/* Filled state */
+body:has(input[type="password"]):has(button[type="submit"]) input:not(:placeholder-shown) {
+  background: hsl(var(--background));
+  border-color: hsl(var(--primary) / 0.55);
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.18);
+}
+
+/* Focus state */
+body:has(input[type="password"]):has(button[type="submit"]) input:focus,
+body:has(input[type="password"]):has(button[type="submit"]) input:focus-visible {
+  border-color: hsl(var(--primary));
+  box-shadow:
+    0 0 0 2px hsl(var(--primary) / 0.35),
+    0 0 16px hsl(var(--primary) / 0.28);
+  filter: brightness(1.03);
+}
+
+body:has(input[type="password"]):has(button[type="submit"]) input::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+  letter-spacing: 0.08em;
+}
+
+body:has(input[type="password"]):has(button[type="submit"]) button[type="submit"] {
+  --login-send-h: 42px;
+  --login-send-cut: 18px;
+
+  height: var(--login-send-h);
+  justify-self: end;
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border: 0 !important;
+  border-radius: 0 !important;
+  width: 33% !important;
+  max-width: 260px;
+  min-width: 180px;
+  text-transform: uppercase;
+  padding: 0 16px !important;
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.45);
+
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--login-send-cut)),
+    calc(100% - var(--login-send-cut)) 100%,
+    0 100%
+  );
+
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+body:has(input[type="password"]):has(button[type="submit"]) button[type="submit"] > span {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ホバー: 明度アップ + グロー */
+body:has(input[type="password"]):has(button[type="submit"]) button[type="submit"]:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 18px hsl(var(--primary) / 0.7);
+}
+
+/* アクティブ: 暗く + 押し込み */
+body:has(input[type="password"]):has(button[type="submit"]) button[type="submit"]:active {
+  filter: brightness(0.92);
+  transform: translateY(1px);
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.35);
+}
+
+body:has(input[type="password"]):has(button[type="submit"]) button[type="submit"]:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px hsl(var(--primary) / 0.5),
+    0 0 18px hsl(var(--primary) / 0.55);
+}
+
+/* =========================
+   [静的] ログイン画面 — エラーアラート
+   台形カットのエラー表示ボックス (疑似要素でボーダー+背景を描画)
+   ========================= */
+
+/* Target the built-in error alert (Tailwind red alert classes) */
+.alert.bg-red-50.border-red-200,
+.alert.dark\:bg-red-950.dark\:border-red-900 {
+  --err-cut: 24px;
+  --err-b: 1px;
+
+  position: relative;
+  border-radius: 0 !important;
+
+  /* We draw border/background via pseudo-elements so the cut edge has a proper border */
+  border: 0 !important;
+  background: transparent !important;
+
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--err-cut)),
+    calc(100% - var(--err-cut)) 100%,
+    0 100%
+  );
+
+  padding: 22px 24px !important;
+}
+
+/* Border layer (follows the cut) */
+.alert.bg-red-50.border-red-200::before,
+.alert.dark\:bg-red-950.dark\:border-red-900::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--error-border));
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--err-cut)),
+    calc(100% - var(--err-cut)) 100%,
+    0 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Fill layer (inset by border width) */
+.alert.bg-red-50.border-red-200::after,
+.alert.dark\:bg-red-950.dark\:border-red-900::after {
+  content: "";
+  position: absolute;
+  inset: var(--err-b);
+  background: hsl(var(--error-bg));
+
+  /* keep the same cut angle inside; reduce cut by border width */
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - calc(var(--err-cut) - var(--err-b))),
+    calc(100% - calc(var(--err-cut) - var(--err-b))) 100%,
+    0 100%
+  );
+
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure alert content sits above the decorative layers */
+.alert.bg-red-50.border-red-200 > *,
+.alert.dark\:bg-red-950.dark\:border-red-900 > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Message text */
+.alert.bg-red-50.border-red-200 p,
+.alert.dark\:bg-red-950.dark\:border-red-900 p {
+  color: hsl(var(--error-foreground)) !important;
+}
+
+/* Icon color */
+.alert.bg-red-50.border-red-200 .text-red-400,
+.alert.dark\:bg-red-950.dark\:text-red-300 {
+  color: hsl(var(--error-border)) !important;
+}
+
+/* =========================
+   [静的] ログイン画面 — トースト非表示
+   インラインアラートを優先するため、Sonnerのエラートーストを非表示
+   ========================= */
+li.toast[data-sonner-toast][data-type="error"] {
+  display: none !important;
+}
+
+/* =========================
+   [静的] トーク画面 — 背景修正
+   チャットページの背景を単色にし、既定の背景画像やカード背景を透明化
+   ========================= */
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) {
+  position: relative;
+  isolation: isolate;
+  background: hsl(var(--background)) !important;
+  background-image: none !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: hsl(var(--background));
+  pointer-events: none;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) :where(#root, main, section, .cl-root, .cl-layout),
+body:not(:has(input[type="password"]):has(button[type="submit"])) :where(
+  [class*="bg-muted"],
+  [class*="bg-card"],
+  [data-slot="card"],
+  [data-slot="content"]
+) {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* =========================
+   [静的] トーク画面 — メッセージコンポーザー (外枠)
+   台形カットの入力エリア (疑似要素でボーダー+背景を描画)
+   ========================= */
+
+:root {
+  --composer-cut: 32px;
+  --composer-surface: hsl(var(--background) / 0.96);
+  --composer-border: hsl(var(--primary));
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer {
+  position: relative;
+  overflow: visible;
+  min-height: 168px;
+  padding: 18px 22px 54px 22px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--composer-border);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--composer-cut)),
+    calc(100% - var(--composer-cut)) 100%,
+    0 100%,
+    0 calc(100% - var(--composer-cut))
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: var(--composer-surface);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - calc(var(--composer-cut) - 1px)),
+    calc(100% - calc(var(--composer-cut) - 1px)) 100%,
+    0 100%,
+    0 calc(100% - calc(var(--composer-cut) - 1px))
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer > * {
+  position: relative;
+  z-index: 1;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer #chat-input {
+  min-height: 104px !important;
+  height: 104px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer #chat-input::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer #chat-input:focus,
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer #chat-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #message-composer > .flex.items-center.justify-between {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 12px;
+  align-items: end;
+}
+
+/* =========================
+   [静的] トーク画面 — アシスタントアバター
+   アバターを拡大し、回転アニメーション付きで表示
+   ========================= */
+
+/* アバターを64pxに拡大し、負マージンで行の横幅を回収 */
+span.relative.flex.shrink-0.overflow-hidden.rounded-full[data-state]:has(> img[alt="Avatar for Assistant"]) {
+  width: 64px !important;
+  height: 64px !important;
+  margin-top: 6px !important;
+  margin-right: -42px !important;
+  z-index: 2;
+  overflow: visible !important;
+}
+
+span.relative.flex.shrink-0.overflow-hidden.rounded-full[data-state]:has(> img[alt="Avatar for Assistant"]) img[alt="Avatar for Assistant"] {
+  position: relative;
+  left: -30px;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  object-position: right center;
+  transform-origin: center center;
+  animation: cl-logo-spin 24s linear infinite;
+  display: block;
+}
+
+:root {
+  --chat-cut: 24px;
+  --chat-frame-border: hsl(var(--border));
+  --chat-frame-surface: hsl(var(--background) / 0.88);
+  --chat-frame-padding-x: 20px;
+  --chat-frame-padding-y: 16px;
+}
+
+/* =========================
+   [静的] トーク画面 — メッセージバブル
+   ユーザー/アシスタントのメッセージに台形フレームを適用
+   ========================= */
+
+/* ユーザーバブル: 台形フレームの外殻 */
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 {
+  position: relative;
+  overflow: visible;
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: 1 1 100% !important;
+  margin-top: 28px;
+  margin-bottom: 40px;
+  padding: var(--chat-frame-padding-y) var(--chat-frame-padding-x) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--chat-frame-border);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--chat-cut)),
+    calc(100% - var(--chat-cut)) 100%,
+    0 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: var(--chat-frame-surface);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - calc(var(--chat-cut) - 1px)),
+    calc(100% - calc(var(--chat-cut) - 1px)) 100%,
+    0 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* USERラベル: フレーム疑似要素と衝突しないよう内部ラッパーに配置 */
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 > .flex:first-child {
+  position: relative;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 > .flex:first-child::before {
+  content: "USER";
+  position: absolute;
+  top: -42px;
+  left: 8px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: hsl(var(--primary));
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+/* ユーザーバブル内の既定message-contentパネルを無効化 */
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  clip-path: none !important;
+  overflow: visible !important;
+}
+
+/* アシスタントメッセージ: ユーザーバブル外のmessage-contentにのみフレーム適用 */
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content) {
+  position: relative;
+  display: block;
+  overflow: visible;
+  margin-top: 28px;
+  margin-bottom: 40px;
+  padding: var(--chat-frame-padding-y) var(--chat-frame-padding-x) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--chat-frame-border);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--chat-cut)),
+    calc(100% - var(--chat-cut)) 100%,
+    0 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content)::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: var(--chat-frame-surface);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - calc(var(--chat-cut) - 1px)),
+    calc(100% - calc(var(--chat-cut) - 1px)) 100%,
+    0 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content) > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ASSISTANTラベル: フレーム疑似要素と衝突しないよう内部ラッパーに配置 */
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content) > .flex:first-child {
+  position: relative;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content) > .flex:first-child::before {
+  content: "ASSISTANT";
+  position: absolute;
+  top: -42px;
+  right: 8px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: hsl(var(--primary));
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0,
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 :where(div, p, span, [role="article"]),
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content),
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content) :where(div, p, span, [role="article"]) {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* =========================
+   [静的] トーク画面 — 送信/停止ボタン
+   台形カットのSEND / SENDING...ボタン
+   ========================= */
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  #message-composer > .flex.items-center.justify-between > .flex.items-center.gap-1 {
+  min-width: 180px;
+  justify-content: flex-end;
+}
+
+/* Shared base style for send/stop buttons (trapezoid shape) */
+body:not(:has(input[type="password"]):has(button[type="submit"])) :is(#chat-submit, #stop-button) {
+  --send-h: 42px;
+  --send-cut: 18px;
+
+  position: relative;
+  overflow: hidden;
+  width: 180px !important;
+  height: var(--send-h) !important;
+  min-width: 180px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  padding: 0 !important;
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.45);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--send-cut)),
+    calc(100% - var(--send-cut)) 100%,
+    0 100%
+  );
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+/* Hide default SVG icons and ::after pseudo-elements */
+body:not(:has(input[type="password"]):has(button[type="submit"])) :is(#chat-submit, #stop-button) svg {
+  display: none !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) :is(#chat-submit, #stop-button)::after {
+  content: none;
+}
+
+/* Send button label */
+body:not(:has(input[type="password"]):has(button[type="submit"])) #chat-submit::before {
+  content: "SEND";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(var(--primary-foreground));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Stop button label + forced visibility */
+body:not(:has(input[type="password"]):has(button[type="submit"])) #stop-button {
+  opacity: 1 !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #stop-button::before {
+  content: "SENDING...";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(var(--primary-foreground));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Hover glow */
+body:not(:has(input[type="password"]):has(button[type="submit"])) :is(#chat-submit, #stop-button):hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 0 18px hsl(var(--primary) / 0.7);
+}
+
+/* Active press */
+body:not(:has(input[type="password"]):has(button[type="submit"])) :is(#chat-submit, #stop-button):active:not(:disabled) {
+  filter: brightness(0.92);
+  transform: translateY(1px);
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.35);
+}
+
+/* Focus ring */
+body:not(:has(input[type="password"]):has(button[type="submit"])) :is(#chat-submit, #stop-button):focus-visible {
+  outline: none !important;
+  box-shadow:
+    0 0 0 2px hsl(var(--primary) / 0.5),
+    0 0 18px hsl(var(--primary) / 0.55);
+}
+
+/* Disabled states */
+body:not(:has(input[type="password"]):has(button[type="submit"])) #chat-submit:disabled {
+  opacity: 0.55 !important;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) #stop-button:disabled {
+  opacity: 1 !important;
+}
+
+/* =========================
+   [動的] ダイアログアニメーション — メッセージ出現
+   スケール+フェードインでメッセージを表示、ボーダー点滅エフェクト付き
+   ========================= */
+
+:root {
+  --chat-enter-duration: 600ms;
+  --chat-enter-scale: 0.9;
+  --chat-enter-flash-border: hsl(var(--primary));
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-anim-target {
+  opacity: 0;
+  transform: scale(var(--chat-enter-scale));
+  transform-origin: center center;
+  transition:
+    opacity var(--chat-enter-duration) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--chat-enter-duration) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-anim-target.cl-anim-enter-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-anim-target.cl-anim-done {
+  opacity: 1;
+  transform: none;
+}
+
+
+@keyframes cl-border-blink-twice {
+  0% {
+    background: var(--chat-frame-border);
+  }
+  15% {
+    background: var(--chat-enter-flash-border);
+  }
+  30% {
+    background: var(--chat-frame-border);
+  }
+  70% {
+    background: var(--chat-enter-flash-border);
+  }
+  100% {
+    background: var(--chat-frame-border);
+  }
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0.cl-anim-target.cl-anim-enter-active::before,
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content).cl-anim-target.cl-anim-enter-active::before {
+  background: var(--chat-frame-border);
+  animation: cl-border-blink-twice 320ms linear 1;
+}
+
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0.cl-anim-target.cl-anim-done::before,
+body:not(:has(input[type="password"]):has(button[type="submit"]))
+  .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content).cl-anim-target.cl-anim-done::before {
+  background: var(--chat-frame-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-anim-target,
+  body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-anim-target.cl-anim-enter-active,
+  body:not(:has(input[type="password"]):has(button[type="submit"])) .cl-anim-target.cl-anim-done {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  body:not(:has(input[type="password"]):has(button[type="submit"]))
+    div.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0.cl-anim-target::before,
+  body:not(:has(input[type="password"]):has(button[type="submit"]))
+    .message-content:not(.px-5.py-2\.5.relative.bg-accent.rounded-3xl.max-w-\[70\%\].flex-grow-0 .message-content).cl-anim-target::before {
+    background: var(--chat-frame-border) !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

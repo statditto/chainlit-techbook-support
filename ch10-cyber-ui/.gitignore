@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.env
+.vscode
+.files
+
+# Virtual environments
+.venv
+
+# Chainlit config control
+.chainlit/*
+!.chainlit/config.toml
+!.chainlit/translations/
+.chainlit/translations/*
+!.chainlit/translations/ja.json
+
+qr
