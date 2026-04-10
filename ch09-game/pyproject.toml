@@ -1,0 +1,10 @@
+[project]
+name = "game"
+version = "0.1.0"
+description = "Chainlitで遊べる物理パズルゲーム"
+requires-python = ">=3.13"
+dependencies = [
+    "chainlit==2.9.6",
+    "openai>=2.24.0",
+    "python-dotenv>=1.2.2",
+]
