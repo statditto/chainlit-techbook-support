@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Physics Puzzle</title>
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+  <style>
+    * { box-sizing: border-box }
+    body { margin: 0; background: #f0f2f5; color: #1a1a2e; font-family: "Hiragino Sans", "Yu Gothic", sans-serif }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 400px 1fr }
+    .chat { border-right: 1px solid #d1d5db }
+    .chat iframe { width: 100%; height: 100vh; border: 0 }
+    .game { padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px }
+    .toolbar { width: min(860px, calc(100vw - 440px)); display: flex; align-items: center; gap: 8px }
+    .spacer { flex: 1 }
+    button { border: 1px solid #d1d5db; background: #ffffff; color: #1a1a2e; border-radius: 8px; padding: 8px 12px; font-weight: 700; cursor: pointer }
+    button:hover { background: #e8ecf0 }
+    .status { border: 1px solid #d1d5db; background: #ffffff; color: #4b5563; border-radius: 8px; padding: 8px 10px; font-size: 13px }
+    #status { width: min(860px, calc(100vw - 440px)) }
+    #canvas-wrap { position: relative; border: 1px solid #d1d5db; border-radius: 10px; overflow: hidden; background: #e8ecf0 }
+    #placeholder { display: flex; align-items: center; justify-content: center; width: 800px; height: 600px; color: #6b7280; font-size: 16px }
+    #game-canvas { display: block }
+    #overlay { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; background: rgba(255,255,255,.65); font-size: 32px; font-weight: 700; z-index: 10; border-radius: 10px }
+    #overlay.active { display: flex }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr }
+      .chat iframe { height: 50vh }
+      .toolbar, #status { width: 100% }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="chat">
+      <iframe src="/"></iframe>
+    </section>
+    <section class="game">
+      <div class="toolbar">
+        <button id="start-btn" disabled>スタート</button>
+        <button id="reset-btn" disabled>リセット</button>
+      </div>
+      <div id="canvas-wrap">
+        <div id="placeholder">チャットでパズル生成を依頼してください</div>
+        <canvas id="game-canvas" style="display:none"></canvas>
+        <div id="overlay"></div>
+      </div>
+      <div id="status" class="status">チャットでパズル生成を依頼してください。</div>
+    </section>
+  </main>
+
+  <script>
+    const { Engine, Render, Runner, Bodies, Body, Composite, Query, Events } = Matter;
+
+    let engine, render, runner;
+    let currentStage = null, bodyMap = {}, gameState = "idle";
+    let dwellStart = null, currentBallBody = null;
+    let initialBodies = [], dragTarget = null, dragOffset = { x: 0, y: 0 };
+    let dragSetup = false, pulseRafId = null;
+
+    /* ---- postMessage from Chainlit ---- */
+    window.addEventListener("message", e => {
+      const d = e.data;
+      if (!d || typeof d !== "object") return;
+      const p = (d.type === "window_message" && d.data) ? d.data : d;
+      if ((p.type === "stage_updated" || p.type === "stage_update") && p.stage) {
+        loadStage(p.stage);
+      }
+    });
+
+    /* ---- Stage loading ---- */
+    function loadStage(stage) {
+      currentStage = stage;
+      stopGame();
+      resetGame();
+      document.getElementById("game-canvas").style.display = "block";
+      document.getElementById("placeholder").style.display = "none";
+      document.getElementById("overlay").classList.remove("active");
+      document.getElementById("start-btn").disabled = false;
+      document.getElementById("reset-btn").disabled = false;
+      initPhysics(stage);
+    }
+
+    function isRamp(b) {
+      const l = (b._stageData || {}).label || "";
+      return l === "ramp" || l === "platform";
+    }
+
+    /* ---- Physics init ---- */
+    function initPhysics(stage) {
+      if (render) { Render.stop(render); render = null; }
+      if (runner) { Runner.stop(runner); runner = null; }
+      if (engine) { Events.off(engine); Composite.clear(engine.world); Engine.clear(engine); engine = null; }
+
+      const cw = stage.canvas?.width || 800;
+      const ch = stage.canvas?.height || 600;
+      engine = Engine.create({ gravity: { x: stage.physics?.gravityX ?? 0, y: stage.physics?.gravityY ?? 1 } });
+
+      const c = document.getElementById("game-canvas");
+      c.width = cw;
+      c.height = ch;
+      render = Render.create({ canvas: c, engine, options: { width: cw, height: ch, wireframes: false, background: "#e8ecf0", pixelRatio: 1 } });
+
+      bodyMap = {};
+      initialBodies = [];
+      currentBallBody = null;
+
+      for (const b of stage.bodies) {
+        const ramp = b.label === "ramp" || b.label === "platform";
+        const opts = {
+          isStatic: ramp ? true : (b.isStatic !== false),
+          isSensor: !!b.isSensor,
+          friction: b.friction ?? 0.1,
+          frictionStatic: b.frictionStatic ?? 0.02,
+          frictionAir: b.frictionAir ?? 0.001,
+          restitution: b.restitution ?? 0.2,
+          density: b.density ?? 0.001,
+          angle: b.angle || 0,
+          label: b.label || "",
+          render: { fillStyle: ramp ? "#fb923c" : (b.color || "#6b7280") },
+        };
+
+        let body;
+        if (b.label === "goal") {
+          opts.render.fillStyle = "rgba(16,185,129,0.2)";
+          opts.render.strokeStyle = "#059669";
+          opts.render.lineWidth = 2;
+          body = Bodies.rectangle(b.x, b.y, b.w || 60, b.h || 50, opts);
+        } else if (b.type === "circle" || b.r != null) {
+          body = Bodies.circle(b.x, b.y, b.r || 15, opts);
+        } else {
+          body = Bodies.rectangle(b.x, b.y, b.w || 100, b.h || 20, opts);
+        }
+
+        body._stageData = b;
+        if (b.id) bodyMap[b.id] = body;
+        if (b.label === "ball") { currentBallBody = body; Body.setStatic(body, true); }
+        Composite.add(engine.world, body);
+        initialBodies.push({ body, x: b.x, y: b.y, angle: b.angle || 0, isStatic: ramp ? true : (b.isStatic !== false) });
+      }
+
+      Events.on(engine, "beforeUpdate", checkGoal);
+      Render.run(render);
+
+      Events.on(render, "afterRender", () => {
+        const ctx = render.context;
+        for (const b of Composite.allBodies(engine.world)) {
+          if (b.label === "goal") {
+            ctx.save();
+            ctx.translate(b.position.x, b.position.y);
+            ctx.rotate(b.angle);
+            ctx.font = "bold 14px sans-serif";
+            ctx.fillStyle = "#059669";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("Goal", 0, 0);
+            ctx.restore();
+          }
+        }
+        if (gameState === "idle") {
+          const a = 0.4 + 0.6 * ((Math.sin(Date.now() / 400) + 1) / 2);
+          for (const b of Composite.allBodies(engine.world)) {
+            if (isRamp(b)) {
+              ctx.save();
+              ctx.translate(b.position.x, b.position.y);
+              ctx.rotate(b.angle);
+              ctx.font = "bold 11px sans-serif";
+              ctx.fillStyle = "rgba(0,0,0," + a.toFixed(2) + ")";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText("ドラッグで移動", 0, 0);
+              ctx.restore();
+            }
+          }
+        }
+      });
+
+      setupDrag(c);
+      gameState = "idle";
+      dwellStart = null;
+      startPulse();
+      updateStatus("オレンジ色の板をドラッグして配置し、スタートを押してください");
+    }
+
+    /* ---- Pulse animation ---- */
+    function startPulse() {
+      if (pulseRafId) cancelAnimationFrame(pulseRafId);
+      const O = [251, 146, 60], B = [255, 200, 120];
+      !function tick() {
+        if (gameState !== "idle") { stopPulse(); return; }
+        const t = (Math.sin(Date.now() / 400) + 1) / 2;
+        const c = "rgb(" + Math.round(O[0] + (B[0] - O[0]) * t) + "," + Math.round(O[1] + (B[1] - O[1]) * t) + "," + Math.round(O[2] + (B[2] - O[2]) * t) + ")";
+        for (const e of initialBodies) if (isRamp(e.body)) e.body.render.fillStyle = c;
+        pulseRafId = requestAnimationFrame(tick);
+      }();
+    }
+
+    function stopPulse() {
+      if (pulseRafId) { cancelAnimationFrame(pulseRafId); pulseRafId = null; }
+      for (const e of initialBodies) if (isRamp(e.body)) e.body.render.fillStyle = "#fb923c";
+    }
+
+    /* ---- Goal check ---- */
+    function checkGoal() {
+      if (gameState !== "playing" || !currentBallBody || !currentStage) return;
+      const w = currentStage.rules?.win;
+      if (!w) return;
+      const g = bodyMap[w.goalId];
+      if (!g) return;
+      const dx = currentBallBody.position.x - g.position.x;
+      const dy = currentBallBody.position.y - g.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const th = g._stageData ? Math.max(g._stageData.w || 60, g._stageData.h || 50) / 2 : 30;
+      if (dist < th) {
+        if (!dwellStart) dwellStart = Date.now();
+        if (Date.now() - dwellStart >= (w.dwellMs || 100)) winGame();
+      } else {
+        dwellStart = null;
+      }
+    }
+
+    /* ---- Game lifecycle ---- */
+    function startGame() {
+      if (!currentStage || gameState === "playing" || !currentBallBody) return;
+      gameState = "playing";
+      dwellStart = null;
+      stopPulse();
+      Body.setStatic(currentBallBody, false);
+      runner = Runner.create();
+      Runner.run(runner, engine);
+      updateStatus("ボールがゴールに到達するのを見守ろう！");
+    }
+
+    function stopGame() {
+      if (runner) { Runner.stop(runner); runner = null; }
+    }
+
+    function resetGame() {
+      stopGame();
+      gameState = "idle";
+      dwellStart = null;
+      for (const e of initialBodies) {
+        Body.setPosition(e.body, { x: e.x, y: e.y });
+        Body.setAngle(e.body, e.angle);
+        Body.setVelocity(e.body, { x: 0, y: 0 });
+        Body.setAngularVelocity(e.body, 0);
+        Body.setStatic(e.body, e.isStatic);
+      }
+      if (currentBallBody) Body.setStatic(currentBallBody, true);
+      const o = document.getElementById("overlay");
+      o.classList.remove("active");
+      o.textContent = "";
+      startPulse();
+      updateStatus("オレンジ色の板をドラッグして配置し、スタートを押してください");
+    }
+
+    function winGame() {
+      gameState = "clear";
+      stopGame();
+      const o = document.getElementById("overlay");
+      o.textContent = "🎉 クリア！";
+      o.style.color = "#059669";
+      o.classList.add("active");
+      updateStatus("クリア！おめでとうございます！");
+    }
+
+    function updateStatus(t) {
+      document.getElementById("status").textContent = t;
+    }
+
+    /* ---- Drag handling ---- */
+    function setupDrag(canvas) {
+      if (dragSetup) return;
+      dragSetup = true;
+
+      const pos = e => {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height };
+      };
+
+      canvas.addEventListener("mousedown", e => {
+        if (gameState !== "idle" || !engine) return;
+        const m = pos(e);
+        for (const b of Query.point(Composite.allBodies(engine.world), m)) {
+          if (isRamp(b)) {
+            dragTarget = b;
+            dragOffset.x = b.position.x - m.x;
+            dragOffset.y = b.position.y - m.y;
+            break;
+          }
+        }
+      });
+
+      canvas.addEventListener("mousemove", e => {
+        if (!dragTarget) return;
+        const m = pos(e);
+        Body.setPosition(dragTarget, { x: m.x + dragOffset.x, y: m.y + dragOffset.y });
+      });
+
+      canvas.addEventListener("mouseup", () => { dragTarget = null; });
+      canvas.addEventListener("mouseleave", () => { dragTarget = null; });
+    }
+
+    /* ---- Button handlers ---- */
+    document.getElementById("start-btn").addEventListener("click", startGame);
+    document.getElementById("reset-btn").addEventListener("click", () => { if (currentStage) resetGame(); });
+  </script>
+</body>
+</html>
